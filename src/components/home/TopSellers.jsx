@@ -13,7 +13,7 @@ const TopSellers = () => {
   useEffect(() => {
     let mounted = true;
 
-    const load = async () => {
+    (async () => {
       try {
         const res = await fetch(TOP_SELLERS_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -22,47 +22,19 @@ const TopSellers = () => {
         setSellers(Array.isArray(data) ? data : []);
         setError(null);
       } catch (err) {
-        console.warn("TopSellers: error", err);
+        console.warn("TopSellers:", err);
         if (!mounted) return;
         setSellers([]);
         setError(err.message || "Failed to load top sellers");
       } finally {
         if (mounted) setLoading(false);
       }
-    };
-
-    load();
+    })();
 
     return () => {
       mounted = false;
     };
   }, []);
-
-  const renderSeller = (seller, index) => {
-    const id = seller?.id ?? seller?.authorId ?? index;
-    const name = seller?.authorName || "Monica Lucas";
-    const img = seller?.authorImage || AuthorImage;
-    const authorId = seller?.authorId;
-    const price =
-      seller?.price != null ? `${seller.price} ETH` : "—";
-
-    return (
-      <li key={id}>
-        <div className="author_list_pp">
-          <Link to={authorId ? `/author/${authorId}` : "/author"}>
-            <img className="lazy pp-author" src={img} alt={name} />
-            <i className="fa fa-check"></i>
-          </Link>
-        </div>
-        <div className="author_list_info">
-          <Link to={authorId ? `/author/${authorId}` : "/author"}>
-            {name}
-          </Link>
-          <span>{price}</span>
-        </div>
-      </li>
-    );
-  };
 
   return (
     <section id="section-popular" className="pb-5">
@@ -84,20 +56,47 @@ const TopSellers = () => {
           <div className="col-md-12">
             <ol className="author_list">
               {loading
-                ? new Array(12).fill(0).map((_, index) =>
-                    renderSeller(null, index)
-                  )
-                : sellers.length === 0
-                  ? (
-                    <li>
+                ? // placeholder rows while fetching
+                  new Array(12).fill(0).map((_, index) => (
+                    <li key={index}>
+                      <div className="author_list_pp">
+                        <Link to="/author">
+                          <img
+                            className="lazy pp-author"
+                            src={AuthorImage}
+                            alt=""
+                          />
+                          <i className="fa fa-check"></i>
+                        </Link>
+                      </div>
                       <div className="author_list_info">
-                        <span>No top sellers found.</span>
+                        <Link to="/author">Loading...</Link>
+                        <span>—</span>
                       </div>
                     </li>
-                  )
-                  : sellers.map((seller, index) =>
-                      renderSeller(seller, index)
-                    )}
+                  ))
+                : sellers.map((seller) => (
+                    <li key={seller.id ?? seller.authorId}>
+                      <div className="author_list_pp">
+                        <Link to={`/author/${seller.authorId}`}>
+                          <img
+                            className="lazy pp-author"
+                            src={seller.authorImage || AuthorImage}
+                            alt={seller.authorName || ""}
+                          />
+                          <i className="fa fa-check"></i>
+                        </Link>
+                      </div>
+                      <div className="author_list_info">
+                        <Link to={`/author/${seller.authorId}`}>
+                          {seller.authorName}
+                        </Link>
+                        <span>
+                          {seller.price != null ? `${seller.price} ETH` : "—"}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
             </ol>
           </div>
         </div>
