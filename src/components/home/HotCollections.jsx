@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+
 import AuthorImage from "../../images/author_thumbnail.jpg";
 import nftImage from "../../images/nftImage.jpg";
+
+
+//It seems the Hot_Collections API goes down often, so I had to tryfallback to /newItems and then a local mock.
+//It seemed to have worked.
+
 
 const HOT_COLLECTIONS_URL =
   "https://us-central1-nft-cloud-functions.cloudfunctions.net/hotcollections";
@@ -15,7 +24,6 @@ const MOCK_ITEMS = [
   { id: "m4", name: "Crypto Waves", img: nftImage, authorImg: AuthorImage, code: "ERC-20" },
 ];
 
-/** Map /newItems payload into the shape HotCollections expects */
 function mapNewItemsToCollections(items) {
   if (!Array.isArray(items)) return [];
   return items.map((item, index) => ({
@@ -26,6 +34,25 @@ function mapNewItemsToCollections(items) {
     code: item.code ?? item.symbol ?? "ERC-721",
   }));
 }
+
+const pick = (obj, ...keys) => {
+  for (const k of keys) if (obj && obj[k]) return obj[k];
+  return null;
+};
+
+const sliderSettings = {
+  dots: true,
+  infinite: true,
+  speed: 500,
+  slidesToShow: 4,
+  slidesToScroll: 1,
+  arrows: true,
+  responsive: [
+    { breakpoint: 1200, settings: { slidesToShow: 3 } },
+    { breakpoint: 992, settings: { slidesToShow: 2 } },
+    { breakpoint: 576, settings: { slidesToShow: 1 } },
+  ],
+};
 
 const HotCollections = () => {
   const [items, setItems] = useState([]);
@@ -39,10 +66,7 @@ const HotCollections = () => {
     const load = async () => {
       // 1) Primary: /hotcollections
       try {
-        console.log("HotCollections: fetching", HOT_COLLECTIONS_URL);
         const res = await fetch(HOT_COLLECTIONS_URL);
-        console.log("HotCollections: response", res.status);
-
         if (res.ok) {
           const data = await res.json();
           if (!mounted) return;
@@ -51,17 +75,13 @@ const HotCollections = () => {
           setError(null);
           return;
         }
-        // Non-OK → fall through to next source
-        console.warn("HotCollections: hotcollections failed with", res.status);
       } catch (err) {
         console.warn("HotCollections: hotcollections error", err);
       }
 
       // 2) Temporary fallback: /newItems
       try {
-        console.log("HotCollections: trying fallback", NEW_ITEMS_URL);
         const res = await fetch(NEW_ITEMS_URL);
-
         if (res.ok) {
           const data = await res.json();
           if (!mounted) return;
@@ -70,12 +90,11 @@ const HotCollections = () => {
           setError("hotcollections unavailable — using /newItems as temporary source");
           return;
         }
-        console.warn("HotCollections: newItems failed with", res.status);
       } catch (err) {
         console.warn("HotCollections: newItems error", err);
       }
 
-      // 3) Last resort: local mock
+      // 3) Local mock
       if (!mounted) return;
       setItems(MOCK_ITEMS);
       setSource("mock");
@@ -91,11 +110,6 @@ const HotCollections = () => {
     };
   }, []);
 
-  const pick = (obj, ...keys) => {
-    for (const k of keys) if (obj && obj[k]) return obj[k];
-    return null;
-  };
-
   const sourceLabel =
     source === "api"
       ? "fetched from API (/hotcollections)"
@@ -104,6 +118,40 @@ const HotCollections = () => {
         : source === "mock"
           ? "using local mock"
           : null;
+
+  const renderCard = (item, index) => {
+    const img = pick(item, "img", "image", "nftImage", "banner") || nftImage;
+    const authorImg =
+      pick(item, "authorImg", "author_image", "authorImage") || AuthorImage;
+    const title =
+      pick(item, "name", "title", "collection") || `Collection ${index + 1}`;
+    const code = pick(item, "code", "symbol", "token") || "ERC-192";
+    const id = pick(item, "id", "tokenId", "_id") || index;
+
+    return (
+      <div key={id} style={{ padding: "0 8px" }}>
+        <div className="nft_coll">
+          <div className="nft_wrap">
+            <Link to="/item-details">
+              <img src={img} className="lazy img-fluid" alt={title} />
+            </Link>
+          </div>
+          <div className="nft_coll_pp">
+            <Link to="/author">
+              <img className="lazy pp-coll" src={authorImg} alt={title} />
+            </Link>
+            <i className="fa fa-check"></i>
+          </div>
+          <div className="nft_coll_info">
+            <Link to="/explore">
+              <h4>{title}</h4>
+            </Link>
+            <span>{code}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <section id="section-collections" className="no-bottom">
@@ -121,81 +169,39 @@ const HotCollections = () => {
             </div>
           </div>
 
-          {loading ? (
-            new Array(4).fill(0).map((_, index) => (
-              <div className="col-lg-3 col-md-6 col-sm-6 col-xs-12" key={index}>
-                <div className="nft_coll">
-                  <div className="nft_wrap">
-                    <img src={nftImage} className="lazy img-fluid" alt="" />
-                  </div>
-                  <div className="nft_coll_pp">
-                    <img className="lazy pp-coll" src={AuthorImage} alt="" />
-                    <i className="fa fa-check"></i>
-                  </div>
-                  <div className="nft_coll_info">
-                    <h4>Loading...</h4>
-                    <span>—</span>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <>
-              {error && (
-                <div className="col-12" style={{ marginBottom: 12 }}>
-                  Warning: {error}
-                </div>
-              )}
-              {items.slice(0, 4).map((item, index) => {
-                const img =
-                  pick(item, "img", "image", "nftImage", "banner") || nftImage;
-                const authorImg =
-                  pick(item, "authorImg", "author_image", "authorImage") ||
-                  AuthorImage;
-                const title =
-                  pick(item, "name", "title", "collection") ||
-                  `Collection ${index + 1}`;
-                const code =
-                  pick(item, "code", "symbol", "token") || "ERC-192";
-                const id = pick(item, "id", "tokenId", "_id") || index;
+          {error && (
+            <div className="col-12" style={{ marginBottom: 12 }}>
+              Warning: {error}
+            </div>
+          )}
 
-                return (
-                  <div
-                    className="col-lg-3 col-md-6 col-sm-6 col-xs-12"
-                    key={id}
-                  >
+          <div className="col-lg-12">
+            {loading ? (
+              <Slider {...sliderSettings}>
+                {new Array(4).fill(0).map((_, index) => (
+                  <div key={index} style={{ padding: "0 8px" }}>
                     <div className="nft_coll">
                       <div className="nft_wrap">
-                        <Link to="/item-details">
-                          <img
-                            src={img}
-                            className="lazy img-fluid"
-                            alt={title}
-                          />
-                        </Link>
+                        <img src={nftImage} className="lazy img-fluid" alt="" />
                       </div>
                       <div className="nft_coll_pp">
-                        <Link to="/author">
-                          <img
-                            className="lazy pp-coll"
-                            src={authorImg}
-                            alt={title}
-                          />
-                        </Link>
+                        <img className="lazy pp-coll" src={AuthorImage} alt="" />
                         <i className="fa fa-check"></i>
                       </div>
                       <div className="nft_coll_info">
-                        <Link to="/explore">
-                          <h4>{title}</h4>
-                        </Link>
-                        <span>{code}</span>
+                        <h4>Loading...</h4>
+                        <span>—</span>
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </>
-          )}
+                ))}
+              </Slider>
+            ) : (
+              <Slider {...sliderSettings}>
+                {items.map((item, index) => renderCard(item, index))}
+              </Slider>
+            )}
+          </div>
         </div>
       </div>
     </section>
