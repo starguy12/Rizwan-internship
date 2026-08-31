@@ -360,4 +360,4 @@ const CollectionsPage = () => (
 );
 
 export { HotCollections, NewItems };
-export default CollectionsPage;
+export default HotCollections;
