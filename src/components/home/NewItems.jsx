@@ -51,7 +51,7 @@ const NewItems = () => {
   }, []);
 
   const formatExpiry = (ts) => {          //recalculates the remaining time until the expiry date and formats it as a string
-    if (ts == null || ts === "") return "—";
+    if (ts == null || ts === "") return "—"; //This part is actually REUSABLE. I decided not to create a separate file.
     const end = Number(ts);
     if (Number.isNaN(end)) return "—";
 

@@ -1,28 +1,60 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import AuthorImage from "../../images/author_thumbnail.jpg";
 import nftImage from "../../images/nftImage.jpg";
 
-const EXPLORE_URL =
+const EXPLORE_BASE_URL =
   "https://us-central1-nft-cloud-functions.cloudfunctions.net/explore";
+
+const AUTHOR_URL =
+  "https://us-central1-nft-cloud-functions.cloudfunctions.net/authors?author=73855012";
 
 const PAGE_SIZE = 8;
 
 const ExploreItems = () => {
   const [items, setItems] = useState([]);
+  const [author, setAuthor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [filter, setFilter] = useState("");
   const [now, setNow] = useState(Date.now());
 
-  // Fetch explore data
+  // 1. Fetch author data (once)
   useEffect(() => {
     let mounted = true;
 
-    (async () => {
+    const loadAuthor = async () => {
       try {
-        const res = await fetch(EXPLORE_URL);
+        const res = await fetch(AUTHOR_URL);
+        if (!res.ok) throw new Error(`Author HTTP ${res.status}`);
+        const data = await res.json();
+        if (mounted) setAuthor(data);
+      } catch (err) {
+        console.warn("Author fetch failed:", err);
+      }
+    };
+
+    loadAuthor();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // 2. Fetch explore data (with optional filter)
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      setLoading(true);
+      setVisibleCount(PAGE_SIZE);
+
+      try {
+        const url = filter
+          ? `${EXPLORE_BASE_URL}?filter=${encodeURIComponent(filter)}`
+          : EXPLORE_BASE_URL;
+
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!mounted) return;
@@ -36,14 +68,16 @@ const ExploreItems = () => {
       } finally {
         if (mounted) setLoading(false);
       }
-    })();
+    };
+
+    load();
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [filter]);
 
-  // Live countdown tick
+  // Live countdown
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
@@ -61,23 +95,8 @@ const ExploreItems = () => {
     return `${h}h ${m}m ${s}s`;
   };
 
-  // Sort by selected filter
-  const sortedItems = useMemo(() => {
-    const list = [...items];
-    switch (filter) {
-      case "price_low_to_high":
-        return list.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-      case "price_high_to_low":
-        return list.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
-      case "likes_high_to_low":
-        return list.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
-      default:
-        return list;
-    }
-  }, [items, filter]);
-
-  const visibleItems = sortedItems.slice(0, visibleCount);
-  const hasMore = visibleCount < sortedItems.length;
+  const visibleItems = items.slice(0, visibleCount);
+  const hasMore = visibleCount < items.length;
 
   const handleLoadMore = (e) => {
     e.preventDefault();
@@ -86,18 +105,21 @@ const ExploreItems = () => {
 
   const handleFilterChange = (e) => {
     setFilter(e.target.value);
-    setVisibleCount(PAGE_SIZE); // reset to first 8 when filter changes
   };
 
   const renderCard = (item, index) => {
     const id = item?.id ?? item?.nftId ?? index;
     const title = item?.title || "Pinky Ocean";
     const img = item?.nftImage || nftImage;
-    const authorImg = item?.authorImage || AuthorImage;
+
+    // Prefer item's own author image → fetched author → static fallback
+    const authorImg =
+      item?.authorImage || author?.authorImage || AuthorImage;
+
     const price = item?.price != null ? `${item.price} ETH` : "—";
     const likes = item?.likes ?? 0;
     const expiry = formatExpiry(item?.expiryDate);
-    const authorId = item?.authorId;
+    const authorId = item?.authorId ?? author?.authorId ?? author?.id;
     const nftId = item?.nftId ?? id;
 
     return (
@@ -112,6 +134,7 @@ const ExploreItems = () => {
               to={authorId ? `/author/${authorId}` : "/author"}
               data-bs-toggle="tooltip"
               data-bs-placement="top"
+              title={author?.authorName}
             >
               <img className="lazy" src={authorImg} alt="" />
               <i className="fa fa-check"></i>
@@ -126,18 +149,28 @@ const ExploreItems = () => {
                 <button>Buy Now</button>
                 <div className="nft__item_share">
                   <h4>Share</h4>
-                  <a href="" target="_blank" rel="noreferrer">
+                  <a
+                    href="https://www.facebook.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     <i className="fa fa-facebook fa-lg"></i>
                   </a>
-                  <a href="" target="_blank" rel="noreferrer">
+                  <a
+                    href="https://twitter.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     <i className="fa fa-twitter fa-lg"></i>
                   </a>
-                  <a href="">
+                  <a href="mailto:">
                     <i className="fa fa-envelope fa-lg"></i>
                   </a>
                 </div>
               </div>
             </div>
+
+            {/* Click → full item page */}
             <Link to={`/item-details/${nftId}`}>
               <img
                 src={img}
@@ -146,6 +179,7 @@ const ExploreItems = () => {
               />
             </Link>
           </div>
+
           <div className="nft__item_info">
             <Link to={`/item-details/${nftId}`}>
               <h4>{title}</h4>
@@ -190,14 +224,13 @@ const ExploreItems = () => {
 
       {hasMore && !loading && (
         <div className="col-md-12 text-center">
-          <Link
-            to=""
+          <button
             id="loadmore"
             className="btn-main lead"
             onClick={handleLoadMore}
           >
             Load more
-          </Link>
+          </button>
         </div>
       )}
     </>
