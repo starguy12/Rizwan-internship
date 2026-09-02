@@ -350,14 +350,6 @@ const NewItems = () => {
   );
 };
 
-/* ========================= Page: both sections ========================= */
-
-const CollectionsPage = () => (
-  <>
-    <HotCollections />
-    <NewItems />
-  </>
-);
 
 export { HotCollections, NewItems };
 export default HotCollections;
