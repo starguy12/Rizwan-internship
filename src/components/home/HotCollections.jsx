@@ -11,7 +11,7 @@ import nftImage from "../../images/nftImage.jpg";
 // It seemed to have worked.
 
 const HOT_COLLECTIONS_URL =
-  "https://us-central1-nft-cloud-functions.cloudfunctions.net/hotcollections";
+  "https://us-central1-nft-cloud-functions.cloudfunctions.net/hotCollections";
 const NEW_ITEMS_URL =
   "https://us-central1-nft-cloud-functions.cloudfunctions.net/newItems";
 
@@ -20,6 +20,8 @@ const MOCK_ITEMS = [
   { id: "m2", name: "Sunny Mountains", img: nftImage, authorImg: AuthorImage, code: "ERC-721" },
   { id: "m3", name: "Neon Galaxy", img: nftImage, authorImg: AuthorImage, code: "ERC-1155" },
   { id: "m4", name: "Crypto Waves", img: nftImage, authorImg: AuthorImage, code: "ERC-20" },
+  { id: "m5", name: "Digital Dreams", img: nftImage, authorImg: AuthorImage, code: "ERC-721" },
+  { id: "m6", name: "Pixel World", img: nftImage, authorImg: AuthorImage, code: "ERC-1155" },
 ];
 
 function mapNewItemsToCollections(items) {
@@ -30,6 +32,8 @@ function mapNewItemsToCollections(items) {
     img: item.nftImage ?? item.image ?? item.img ?? nftImage,
     authorImg: item.authorImage ?? item.authorImg ?? AuthorImage,
     code: item.code ?? item.symbol ?? "ERC-721",
+    nftId: item.nftId ?? item.id,
+    authorId: item.authorId,
   }));
 }
 
@@ -38,19 +42,59 @@ const pick = (obj, ...keys) => {
   return null;
 };
 
-const sliderSettings = {
-  dots: true,
-  infinite: true,
-  speed: 500,
-  slidesToShow: 4,
-  slidesToScroll: 1,
-  arrows: true,
-  responsive: [
-    { breakpoint: 1200, settings: { slidesToShow: 3 } },
-    { breakpoint: 992, settings: { slidesToShow: 2 } },
-    { breakpoint: 576, settings: { slidesToShow: 1 } },
-  ],
-};
+/* ========================= Custom Arrows ========================= */
+
+const NextArrow = ({ onClick }) => (
+  <button
+    className="slick-arrow slick-next"
+    onClick={onClick}
+    style={{
+      position: "absolute",
+      right: "-15px",
+      top: "40%",
+      zIndex: 10,
+      background: "#212529",
+      color: "white",
+      border: "none",
+      borderRadius: "50%",
+      width: "40px",
+      height: "40px",
+      fontSize: "18px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    ›
+  </button>
+);
+
+const PrevArrow = ({ onClick }) => (
+  <button
+    className="slick-arrow slick-prev"
+    onClick={onClick}
+    style={{
+      position: "absolute",
+      left: "-15px",
+      top: "40%",
+      zIndex: 10,
+      background: "#212529",
+      color: "white",
+      border: "none",
+      borderRadius: "50%",
+      width: "40px",
+      height: "40px",
+      fontSize: "18px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    ‹
+  </button>
+);
 
 /* ========================= Hot Collections ========================= */
 
@@ -113,14 +157,30 @@ const HotCollections = () => {
     };
   }, []);
 
-  const sourceLabel =
-    source === "api"
-      ? "fetched from API (/hotcollections)"
-      : source === "newItems"
-        ? "temporary: /newItems"
-        : source === "mock"
-          ? "using local mock"
-          : null;
+  const sliderSettings = {
+    dots: true,
+    infinite: items.length > 4,
+    speed: 500,
+    slidesToShow: 4,
+    slidesToScroll: 1,
+    arrows: true,
+    nextArrow: <NextArrow />,
+    prevArrow: <PrevArrow />,
+    responsive: [
+      {
+        breakpoint: 1200,
+        settings: { slidesToShow: 3, infinite: items.length > 3 },
+      },
+      {
+        breakpoint: 992,
+        settings: { slidesToShow: 2, infinite: items.length > 2 },
+      },
+      {
+        breakpoint: 576,
+        settings: { slidesToShow: 1, infinite: items.length > 1 },
+      },
+    ],
+  };
 
   const renderCard = (item, index) => {
     const img = pick(item, "img", "image", "nftImage", "banner") || nftImage;
@@ -130,23 +190,26 @@ const HotCollections = () => {
       pick(item, "name", "title", "collection") || `Collection ${index + 1}`;
     const code = pick(item, "code", "symbol", "token") || "ERC-192";
     const id = pick(item, "id", "tokenId", "_id") || index;
+    const nftId = item.nftId || item.id || id;
+    const authorId = item.authorId;
 
     return (
-      <div key={id} style={{ padding: "0 8px" }}>
-        <div className="nft_coll">
+      <div key={id}>
+        <div className="nft_coll" style={{ margin: "0 10px" }}>
           <div className="nft_wrap">
-            <Link to="/item-details">
+            {/* Clicking the image now opens the full Item Details page */}
+            <Link to={`/item-details/${nftId}`}>
               <img src={img} className="lazy img-fluid" alt={title} />
             </Link>
           </div>
           <div className="nft_coll_pp">
-            <Link to="/author">
+            <Link to={authorId ? `/author/${authorId}` : "/author"}>
               <img className="lazy pp-coll" src={authorImg} alt={title} />
             </Link>
             <i className="fa fa-check"></i>
           </div>
           <div className="nft_coll_info">
-            <Link to="/explore">
+            <Link to={`/item-details/${nftId}`}>
               <h4>{title}</h4>
             </Link>
             <span>{code}</span>
@@ -163,11 +226,6 @@ const HotCollections = () => {
           <div className="col-lg-12">
             <div className="text-center">
               <h2>Hot Collections</h2>
-              {sourceLabel && (
-                <div style={{ fontSize: 12, marginTop: 6 }}>
-                  <strong>Data:</strong> {sourceLabel}
-                </div>
-              )}
               <div className="small-border bg-color-2"></div>
             </div>
           </div>
@@ -178,12 +236,12 @@ const HotCollections = () => {
             </div>
           )}
 
-          <div className="col-lg-12">
+          <div className="col-lg-12" style={{ position: "relative" }}>
             {loading ? (
               <Slider {...sliderSettings}>
-                {new Array(4).fill(0).map((_, index) => (
-                  <div key={index} style={{ padding: "0 8px" }}>
-                    <div className="nft_coll">
+                {new Array(6).fill(0).map((_, index) => (
+                  <div key={index}>
+                    <div className="nft_coll" style={{ margin: "0 10px" }}>
                       <div className="nft_wrap">
                         <img src={nftImage} className="lazy img-fluid" alt="" />
                       </div>
@@ -199,147 +257,10 @@ const HotCollections = () => {
                   </div>
                 ))}
               </Slider>
-            ) : (
-              <Slider {...sliderSettings}>
-                {items.map((item, index) => renderCard(item, index))}
-              </Slider>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-/* ========================= New Items (dedicated API) ========================= */
-
-const NewItems = () => {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        const res = await fetch(NEW_ITEMS_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!mounted) return;
-        setItems(Array.isArray(data) ? data : []);
-        setError(null);
-      } catch (err) {
-        console.warn("NewItems: error", err);
-        if (!mounted) return;
-        setItems([]);
-        setError(err.message || "Failed to load new items");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    load();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const formatExpiry = (ts) => {
-    if (!ts) return null;
-    const diff = ts - Date.now();
-    if (diff <= 0) return "Expired";
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    return `${h}h ${m}m ${s}s`;
-  };
-
-  const renderCard = (item, index) => {
-    const id = item.id ?? item.nftId ?? index;
-    const title = item.title || `Item ${index + 1}`;
-    const img = item.nftImage || nftImage;
-    const authorImg = item.authorImage || AuthorImage;
-    const price = item.price != null ? `${item.price} ETH` : "—";
-    const likes = item.likes ?? 0;
-    const expiry = formatExpiry(item.expiryDate);
-
-    return (
-      <div key={id} style={{ padding: "0 8px" }}>
-        <div className="nft__item">
-          <div className="author_list_pp">
-            <Link to={`/author/${item.authorId || ""}`}>
-              <img className="lazy" src={authorImg} alt="" />
-              <i className="fa fa-check"></i>
-            </Link>
-          </div>
-
-          {expiry && <div className="de_countdown">{expiry}</div>}
-
-          <div className="nft__item_wrap">
-            <Link to={`/item-details/${item.nftId || id}`}>
-              <img src={img} className="lazy nft__item_preview" alt={title} />
-            </Link>
-          </div>
-
-          <div className="nft__item_info">
-            <Link to={`/item-details/${item.nftId || id}`}>
-              <h4>{title}</h4>
-            </Link>
-            <div className="nft__item_price">{price}</div>
-            <div className="nft__item_like">
-              <i className="fa fa-heart"></i>
-              <span>{likes}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <section id="section-items" className="no-bottom">
-      <div className="container">
-        <div className="row">
-          <div className="col-lg-12">
-            <div className="text-center">
-              <h2>New Items</h2>
-              <div className="small-border bg-color-2"></div>
-            </div>
-          </div>
-
-          {error && (
-            <div className="col-12" style={{ marginBottom: 12 }}>
-              Warning: {error}
-            </div>
-          )}
-
-          <div className="col-lg-12">
-            {loading ? (
-              <Slider {...sliderSettings}>
-                {new Array(4).fill(0).map((_, index) => (
-                  <div key={index} style={{ padding: "0 8px" }}>
-                    <div className="nft__item">
-                      <div className="nft__item_wrap">
-                        <img
-                          src={nftImage}
-                          className="lazy nft__item_preview"
-                          alt=""
-                        />
-                      </div>
-                      <div className="nft__item_info">
-                        <h4>Loading...</h4>
-                        <div className="nft__item_price">—</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </Slider>
             ) : items.length === 0 ? (
-              <p className="text-center">No new items found.</p>
+              <p className="text-center">No collections found.</p>
             ) : (
-              <Slider {...sliderSettings}>
+              <Slider key={items.length} {...sliderSettings}>
                 {items.map((item, index) => renderCard(item, index))}
               </Slider>
             )}
@@ -350,6 +271,4 @@ const NewItems = () => {
   );
 };
 
-
-export { HotCollections, NewItems };
 export default HotCollections;

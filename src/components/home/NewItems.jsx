@@ -1,10 +1,68 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+
 import AuthorImage from "../../images/author_thumbnail.jpg";
 import nftImage from "../../images/nftImage.jpg";
 
 const NEW_ITEMS_URL =
   "https://us-central1-nft-cloud-functions.cloudfunctions.net/newItems";
+
+/* ========================= Custom Arrows ========================= */
+
+const NextArrow = ({ onClick }) => (
+  <button
+    className="slick-arrow slick-next"
+    onClick={onClick}
+    style={{
+      position: "absolute",
+      right: "-15px",
+      top: "40%",
+      zIndex: 10,
+      background: "#212529",
+      color: "white",
+      border: "none",
+      borderRadius: "50%",
+      width: "40px",
+      height: "40px",
+      fontSize: "18px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    ›
+  </button>
+);
+
+const PrevArrow = ({ onClick }) => (
+  <button
+    className="slick-arrow slick-prev"
+    onClick={onClick}
+    style={{
+      position: "absolute",
+      left: "-15px",
+      top: "40%",
+      zIndex: 10,
+      background: "#212529",
+      color: "white",
+      border: "none",
+      borderRadius: "50%",
+      width: "40px",
+      height: "40px",
+      fontSize: "18px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    ‹
+  </button>
+);
 
 const NewItems = () => {
   const [items, setItems] = useState([]);
@@ -41,7 +99,7 @@ const NewItems = () => {
     };
   }, []);
 
-  // Live clock
+  // Live countdown clock
   useEffect(() => {
     const id = setInterval(() => {
       setNow(Date.now());
@@ -50,9 +108,9 @@ const NewItems = () => {
   }, []);
 
   const formatExpiry = (ts) => {
-    if (ts == null || ts === "") return "—";
+    if (ts == null || ts === "") return null;
     const end = Number(ts);
-    if (Number.isNaN(end)) return "—";
+    if (Number.isNaN(end)) return null;
 
     const diff = end - now;
     if (diff <= 0) return "Expired";
@@ -61,6 +119,31 @@ const NewItems = () => {
     const m = Math.floor((diff % 3600000) / 60000);
     const s = Math.floor((diff % 60000) / 1000);
     return `${h}h ${m}m ${s}s`;
+  };
+
+  const sliderSettings = {
+    dots: true,
+    infinite: items.length > 4,
+    speed: 500,
+    slidesToShow: 4,
+    slidesToScroll: 1,
+    arrows: true,
+    nextArrow: <NextArrow />,
+    prevArrow: <PrevArrow />,
+    responsive: [
+      {
+        breakpoint: 1200,
+        settings: { slidesToShow: 3, infinite: items.length > 3 },
+      },
+      {
+        breakpoint: 992,
+        settings: { slidesToShow: 2, infinite: items.length > 2 },
+      },
+      {
+        breakpoint: 576,
+        settings: { slidesToShow: 1, infinite: items.length > 1 },
+      },
+    ],
   };
 
   const renderCard = (item, index) => {
@@ -75,8 +158,8 @@ const NewItems = () => {
     const nftId = item?.nftId ?? id;
 
     return (
-      <div className="col-lg-3 col-md-6 col-sm-6 col-xs-12" key={id}>
-        <div className="nft__item">
+      <div key={id}>
+        <div className="nft__item" style={{ margin: "0 10px" }}>
           <div className="author_list_pp">
             <Link
               to={authorId ? `/author/${authorId}` : "/author"}
@@ -89,7 +172,7 @@ const NewItems = () => {
             </Link>
           </div>
 
-          <div className="de_countdown">{expiry}</div>
+          {expiry && <div className="de_countdown">{expiry}</div>}
 
           <div className="nft__item_wrap">
             <div className="nft__item_extra">
@@ -97,7 +180,6 @@ const NewItems = () => {
                 <button>Buy Now</button>
                 <div className="nft__item_share">
                   <h4>Share</h4>
-                  {/* Fixed empty hrefs */}
                   <a
                     href="https://www.facebook.com/"
                     target="_blank"
@@ -160,15 +242,35 @@ const NewItems = () => {
             </div>
           )}
 
-          {loading
-            ? new Array(4).fill(0).map((_, index) => renderCard(null, index))
-            : items.length === 0
-              ? (
-                <div className="col-12 text-center">
-                  <p>No new items found.</p>
-                </div>
-              )
-              : items.map((item, index) => renderCard(item, index))}
+          <div className="col-lg-12" style={{ position: "relative" }}>
+            {loading ? (
+              <Slider {...sliderSettings}>
+                {new Array(4).fill(0).map((_, index) => (
+                  <div key={index}>
+                    <div className="nft__item" style={{ margin: "0 10px" }}>
+                      <div className="nft__item_wrap">
+                        <img
+                          src={nftImage}
+                          className="lazy nft__item_preview"
+                          alt=""
+                        />
+                      </div>
+                      <div className="nft__item_info">
+                        <h4>Loading...</h4>
+                        <div className="nft__item_price">—</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </Slider>
+            ) : items.length === 0 ? (
+              <p className="text-center">No new items found.</p>
+            ) : (
+              <Slider key={items.length} {...sliderSettings}>
+                {items.map((item, index) => renderCard(item, index))}
+              </Slider>
+            )}
+          </div>
         </div>
       </div>
     </section>
