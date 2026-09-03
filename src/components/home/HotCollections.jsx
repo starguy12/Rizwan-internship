@@ -102,7 +102,7 @@ const HotCollections = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [source, setSource] = useState(null); // 'api' | 'newItems' | 'mock'
+  const [, setSource] = useState(null); // ignore the value
 
   useEffect(() => {
     let mounted = true;
